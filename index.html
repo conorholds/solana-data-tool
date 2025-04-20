@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solana Instruction Data Tool</title>
+    <meta
+      name="description"
+      content="Developer tool for encoding and decoding Solana instruction data."
+    />
+    <meta property="og:title" content="Solana Instruction Data Tool" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://solanadatatool.com" />
+    <meta property="og:image" content="https://solanadatatool.com/image.jpg" />
+    <meta
+      property="og:description"
+      content="Developer tool for encoding and decoding Solana instruction data."
+    />
+    <link rel="icon" type="image/png" href="./favicon.ico" />
+    <link rel="stylesheet" href="./style.css" />
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/base-58@0.0.1/Base58.min.js"></script>
+    <script src="./main.js"></script>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Solana Instruction Data Tool</h1>
+
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('decode-tab')">
+          📀 Decode Data
+        </div>
+        <div class="tab" onclick="switchTab('encode-tab')">💿 Encode Data</div>
+      </div>
+
+      <!-- Data Structure Definition (Shared between tabs) -->
+      <div class="form-group">
+        <label>Data Structure Definition</label>
+        <div id="fieldContainer" class="field-container">
+          <!-- Fields will be added here -->
+        </div>
+        <button class="add-field-btn" onclick="addField()">+ Add Field</button>
+      </div>
+
+      <!-- Decode Tab -->
+      <div id="decode-tab" class="tab-content active">
+        <p>Define a data structure above and decode raw transaction data.</p>
+
+        <div class="form-group">
+          <div class="switch-container">
+            <label class="switch">
+              <input type="checkbox" id="isAnchorProgram" checked />
+              <span class="slider"></span>
+            </label>
+            <span class="switch-label"
+              >Anchor Program (include discriminator)</span
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="switch-container">
+            <label class="switch">
+              <input
+                type="checkbox"
+                id="isBase58"
+                onchange="toggleInputMode()"
+              />
+              <span class="slider"></span>
+            </label>
+            <span class="switch-label">Base58 Encoded Input</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label id="dataInputLabel" for="dataInput"
+            >Raw Transaction Data (hex)</label
+          >
+          <textarea
+            id="dataInput"
+            placeholder="Enter raw transaction data (hex format without 0x prefix)"
+          ></textarea>
+          <button class="example-btn" onclick="loadDecodeExample()">
+            Load Example
+          </button>
+        </div>
+
+        <button onclick="decodeData()">Decode Data</button>
+
+        <div id="decode-result" class="result">
+          <div class="text-center">
+            <label>Decoded Data:</label>
+          </div>
+          <pre id="decode-result-content"></pre>
+        </div>
+
+        <div id="decode-error" class="error"></div>
+      </div>
+
+      <!-- Encode Tab -->
+      <div id="encode-tab" class="tab-content">
+        <p>Define a data structure above and enter values to encode.</p>
+
+        <div class="form-group">
+          <div class="switch-container">
+            <label class="switch">
+              <input type="checkbox" id="encodeWithAnchor" checked />
+              <span class="slider"></span>
+            </label>
+            <span class="switch-label"
+              >Anchor Program (include discriminator)</span
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Enter Values to Encode</label>
+          <div id="encodeValuesContainer" class="encode-values-container">
+            <!-- Value inputs will be generated based on the field definition -->
+          </div>
+          <button class="example-btn" onclick="loadEncodeExample()">
+            Load Example
+          </button>
+        </div>
+
+        <button onclick="encodeData()">Encode Data</button>
+
+        <div id="encode-result" class="result">
+          <div class="form-group">
+            <label>Encoded Data (hex):</label>
+            <textarea id="hex-result" readonly></textarea>
+          </div>
+          <div class="form-group">
+            <label>Encoded Data (base58):</label>
+            <textarea id="base58-result" readonly></textarea>
+          </div>
+        </div>
+
+        <div id="encode-error" class="error"></div>
+      </div>
+
+      <div class="footer">
+        <p>
+          A client-side tool for encoding and decoding Solana transaction data
+        </p>
+        <p>
+          <a class="info-link" onclick="openTransactionModal()">
+            Explain how Solana transaction data is encoded / decoded
+          </a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Transaction Data Modal -->
+    <div id="transaction-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('transaction-modal')"
+          >&times;</span
+        >
+        <h2>Solana Transaction Data Encoding & Decoding</h2>
+        <p>
+          Solana smart contracts (programs) communicate with clients through
+          structured binary data that needs to be properly encoded and decoded
+          to ensure correct interpretation.
+        </p>
+
+        <h3>Binary Encoding Basics</h3>
+        <p>
+          Solana transaction data is encoded in a compact binary format to
+          minimize transaction size and reduce fees. Each data type has a
+          specific binary representation:
+        </p>
+        <ul style="margin-left: 20px; margin-bottom: 15px">
+          <li style="margin: 5px 0">
+            <strong>Integer types</strong> (u8, u16, u32, u64, u128, i8, i16,
+            i32, i64, i128) are stored in little-endian byte order
+          </li>
+          <li style="margin: 5px 0">
+            <strong>Boolean values</strong> are stored as a single byte (1 for
+            true, 0 for false)
+          </li>
+          <li style="margin: 5px 0">
+            <strong>Public keys</strong> are stored as 32-byte arrays
+          </li>
+          <li style="margin: 5px 0">
+            <strong>Strings and byte arrays</strong> are prefixed with a 4-byte
+            length (u32) followed by the actual bytes
+          </li>
+        </ul>
+
+        <h3>Anchor Program Format</h3>
+        <p>
+          Programs built with the Anchor framework use an 8-byte discriminator
+          at the beginning of instruction data:
+        </p>
+        <pre><code>// Transaction data structure with Anchor
+[8-byte discriminator][instruction data]</code></pre>
+        <p>
+          The discriminator is the first 8 bytes of the SHA-256 hash of the
+          instruction's name, which uniquely identifies which instruction should
+          be executed.
+        </p>
+
+        <h3>Base58 Encoding</h3>
+        <p>
+          For readability and efficient representation in UIs, Solana often uses
+          Base58 encoding for binary data:
+        </p>
+        <ul style="margin-left: 20px; margin-bottom: 15px">
+          <li style="margin: 5px 0">
+            Base58 uses the characters 1-9, A-Z, a-z, excluding 0, O, I, and l
+            (to prevent visual confusion)
+          </li>
+          <li style="margin: 5px 0">
+            It's more compact than hex encoding while remaining URL-safe
+          </li>
+          <li style="margin: 5px 0">
+            Public keys and transaction signatures are commonly displayed in
+            Base58 format
+          </li>
+        </ul>
+
+        <h3>Why Encoding/Decoding Matters</h3>
+        <p>Proper encoding and decoding is critical for:</p>
+        <ul style="margin-left: 20px; margin-bottom: 15px">
+          <li style="margin: 5px 0">
+            <strong>Security</strong> - Ensuring data is interpreted correctly
+            and doesn't cause unexpected behavior
+          </li>
+          <li style="margin: 5px 0">
+            <strong>Efficiency</strong> - Minimizing transaction size to reduce
+            fees
+          </li>
+          <li style="margin: 5px 0">
+            <strong>Interoperability</strong> - Enabling different clients to
+            interact with the same programs
+          </li>
+          <li style="margin: 5px 0">
+            <strong>Debugging</strong> - Helping developers understand and
+            troubleshoot transaction data
+          </li>
+        </ul>
+
+        <p>
+          For more information, see the
+          <a
+            href="https://solana.com/docs/core/transactions#instruction"
+            target="_blank"
+            rel="noopener"
+          >
+            official Solana documentation on transaction instructions
+          </a>
+          and
+          <a
+            href="https://book.anchor-lang.com/"
+            target="_blank"
+            rel="noopener"
+          >
+            Anchor Framework documentation </a
+          >.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
