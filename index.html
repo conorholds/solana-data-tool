@@ -104,13 +104,28 @@
         <div class="form-group">
           <div class="switch-container">
             <label class="switch">
-              <input type="checkbox" id="encodeWithAnchor" checked />
+              <input
+                type="checkbox"
+                id="encodeWithAnchor"
+                checked
+                onchange="toggleAnchorInstructionName()"
+              />
               <span class="slider"></span>
             </label>
             <span class="switch-label"
               >Anchor Program (include discriminator)</span
             >
           </div>
+        </div>
+
+        <!-- New: Instruction Name Input for Anchor Programs -->
+        <div id="anchorInstructionNameContainer" class="form-group">
+          <label for="anchorInstructionName">Instruction Name</label>
+          <input
+            type="text"
+            id="anchorInstructionName"
+            placeholder="Enter the name of your Anchor instruction"
+          />
         </div>
 
         <div class="form-group">

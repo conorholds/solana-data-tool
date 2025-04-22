@@ -58,6 +58,45 @@ function switchTab(tabId) {
   }
 }
 
+// Generate an Anchor discriminator from an instruction name
+async function generateAnchorDiscriminator(instructionName) {
+  // In Anchor, instruction discriminators are generated from the
+  // first 8 bytes of the SHA-256 hash of "global:<snake_case_name>"
+
+  // 1. Convert PascalCase or camelCase to snake_case
+  const snakeCase = instructionName
+    .replace(/([A-Z])/g, "_$1")
+    .toLowerCase()
+    .replace(/^_/, "");
+
+  // 2. Create the preimage string with namespace prefix
+  const preimage = `global:${snakeCase}`;
+
+  // 3. Compute SHA-256 hash
+  const encoder = new TextEncoder();
+  const data = encoder.encode(preimage);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+  // 4. Take first 8 bytes as discriminator
+  const hashArray = new Uint8Array(hashBuffer);
+  return hashArray.slice(0, 8);
+}
+
+// Toggle the instruction name input based on Anchor checkbox
+function toggleAnchorInstructionName() {
+  const showInstructionName =
+    document.getElementById("encodeWithAnchor").checked;
+  const instructionNameContainer = document.getElementById(
+    "anchorInstructionNameContainer"
+  );
+
+  if (instructionNameContainer) {
+    instructionNameContainer.style.display = showInstructionName
+      ? "block"
+      : "none";
+  }
+}
+
 // Modal functions
 function openTransactionModal() {
   document.getElementById("transaction-modal").style.display = "block";
@@ -482,8 +521,8 @@ function decodeData() {
   }
 }
 
-// Encode data according to the defined schema
-function encodeData() {
+// Encode data according to the defined schema with proper Anchor discriminator
+async function encodeData() {
   try {
     // Clear previous results and errors
     document.getElementById("encode-result").style.display = "none";
@@ -515,6 +554,18 @@ function encodeData() {
 
     // Check if we should include an Anchor discriminator
     const includeAnchor = document.getElementById("encodeWithAnchor").checked;
+
+    // Get the instruction name if using Anchor
+    let instructionName = "";
+    if (includeAnchor) {
+      instructionName = document
+        .getElementById("anchorInstructionName")
+        .value.trim();
+      if (!instructionName) {
+        showEncodeError("Please enter an instruction name for Anchor program");
+        return;
+      }
+    }
 
     // Calculate total byte length needed
     let totalLength = 0;
@@ -715,10 +766,19 @@ function encodeData() {
 
     // Add discriminator if needed
     if (includeAnchor) {
-      // Use the same discriminator that's in our example (from the first 8 bytes)
-      const exampleDiscriminator = hexToBytes("70c23f6334935530");
-      result.set(exampleDiscriminator, 0);
-      offset += 8;
+      try {
+        // Generate the actual discriminator based on the instruction name
+        const discriminator = await generateAnchorDiscriminator(
+          instructionName
+        );
+        result.set(discriminator, 0);
+        offset += 8;
+      } catch (error) {
+        showEncodeError(
+          `Error generating Anchor discriminator: ${error.message}`
+        );
+        return;
+      }
     }
 
     // Second pass: encode values
@@ -898,9 +958,9 @@ function loadDecodeExample() {
     typeSelect.value = field.type;
   }
 
-  // Set example data
+  // Set example data - use the actual transaction data from screenshot
   document.getElementById("dataInput").value =
-    "70c23f633493553020b38100000000000078000000000000a78f73b2f3cc7a4da25dafeb74736ab7c32d99bf5d64c73d6a1b2a75fb46f2f5";
+    "70c23f633493553040420f0000000000548c0200000000007027414c760b0bead5ab3dba4f456c06a2cf162ff6d16df43d0b7035371d15d0";
 
   // Set the correct input mode
   document.getElementById("isBase58").checked = false;
@@ -910,7 +970,7 @@ function loadDecodeExample() {
   switchTab("decode-tab");
 }
 
-// Load encode example
+// Load encode example with correct instruction name and data matching the displayed transaction
 function loadEncodeExample() {
   // First load the decode example to set up the fields
   loadDecodeExample();
@@ -918,17 +978,23 @@ function loadEncodeExample() {
   // Switch to encode tab
   switchTab("encode-tab");
 
-  // Set example values
+  // Set example values matching the actual transaction from screenshots
   setTimeout(() => {
     const inputs = document.querySelectorAll(".value-input");
     const values = [
-      "8500000", // a (purchaseQuantity)
-      "30720", // b (expectedPrice)
-      "CH5xQ9fFEo22qAsikUhjySdrkYg5mbQYZrpWYaxZsWc4", // c (seller)
+      "1000000", // purchaseQuantity - matching the actual value shown in the screenshot
+      "166996", // expectedPrice - matching the actual value shown in the screenshot
+      "8YoP1knoxFMgzQxKgAnraWctkre9arBQqQENjpqBw9Sw", // seller - matching the actual key shown in the screenshot
     ];
 
     for (let i = 0; i < Math.min(inputs.length, values.length); i++) {
       inputs[i].value = values[i];
+    }
+
+    // Set the instruction name from the screenshot
+    if (document.getElementById("anchorInstructionName")) {
+      document.getElementById("anchorInstructionName").value =
+        "ProcessExchange";
     }
 
     // Trigger encode to show the result
@@ -936,7 +1002,10 @@ function loadEncodeExample() {
   }, 100);
 }
 
-// Initialize with one field
+// Initialize with one field and set up Anchor instruction name visibility
 document.addEventListener("DOMContentLoaded", function () {
   addField();
+
+  // Initialize the Anchor instruction name container visibility
+  toggleAnchorInstructionName();
 });

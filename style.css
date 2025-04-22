@@ -311,7 +311,7 @@ select:focus {
   font-weight: 500;
 }
 
-.value-input {
+.value-input-wrapper {
   flex-grow: 1;
 }
 
